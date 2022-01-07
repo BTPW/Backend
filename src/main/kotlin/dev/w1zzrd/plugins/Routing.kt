@@ -102,13 +102,6 @@ private fun Routing.configureAuthRoutes(dbManager: DBManager, cryptoManager: Cry
             call.respondText("Account already exists", status = HttpStatusCode.Unauthorized)
         }
     }
-
-    // Generate dummy account for debug
-    get("/auth/dummy") {
-        val check = dbManager.createAccount("dummy@email.com", "password", cryptoManager)
-        call.sessions.set(AuthSession(dbManager.getUser("dummy@email.com")!!.uid))
-        call.respondText("Account ${if (check) "created" else "already exists"}")
-    }
 }
 
 private fun Routing.configureAccountRoutes(dbManager: DBManager, cryptoManager: CryptoManager) {
@@ -218,42 +211,6 @@ private fun Routing.configureEntriesRoutes(dbManager: DBManager, cryptoManager: 
                 call.respondDBResult(dbManager.createEntry(session.uid, call.receive<IncomingEntry>().decode()))
             } catch (e: Exception) {
                 call.respondText("Invalid content", status = HttpStatusCode.BadRequest)
-            }
-        }
-    }
-
-    // Generate dummy entry with given text as name
-    get("/entries/dummy/{text}") {
-        authenticatedAs(dbManager, "dummy@email.com") { session ->
-            val result = dbManager.createEntry(
-                session.uid,
-                DecodedIncomingEntry(
-                    ByteArray(saltLength),
-                    ByteArray(entryNameLength).apply { call.parameters["text"]!!.toByteArray().copyInto(this) },
-                    ByteArray(entryContentLength)
-                )
-            )
-            call.respondDBResult(result)
-        }
-    }
-
-    // Set name of dummy entry with given id
-    get("/entries/dummy/{id}/{text}") {
-        authenticatedAs(dbManager, "dummy@email.com") { session ->
-            val entryID = getParam("id", String::toIntOrNull) ?: return@authenticatedAs
-            val created = dbManager.updateEntry(
-                session.uid,
-                DecodedIncomingEntry(
-                    ByteArray(saltLength),
-                    ByteArray(entryNameLength).apply { call.parameters["text"]!!.toByteArray().copyInto(this) },
-                    ByteArray(entryContentLength),
-                    entryID
-                )
-            )
-            if (created) {
-                call.respondText("Entry created")
-            } else {
-                call.respondText("Entry already exists", status = HttpStatusCode.BadRequest)
             }
         }
     }
